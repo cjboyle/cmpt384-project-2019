@@ -1,0 +1,103 @@
+<!-- Team
+	Connor Boyle - cjb703
+	Paromita Sengupta - pas682
+ -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>A3</title>
+	<script type="text/javascript" src="d3.v5.min.js"></script>
+	<script src="https://d3js.org/d3-color.v1.min.js"></script>
+	<script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+</head>
+
+<body>
+
+	<script type="text/javascript">
+
+
+		var width = 1900.0;
+		var height = 1070.0;
+
+		var nodes = {};
+		var coordinates;
+
+		// Read the two data files
+		Promise.all([d3.csv("weather-canada.csv")]).then(data => {
+			nodes = data[0].reduce((a, v) => {
+				v.x = parseFloat(v.x);
+				v.y = parseFloat(v.y);
+				a.push(v);
+				return a;
+			}, []);
+			generateVisualization();
+		});
+
+		function generateVisualization() {
+			var visibleEdges = [];
+			var visibleNodes = nodes;
+
+			d3.select("body svg").remove();
+			var svg = d3.select("body")
+				.append("svg")
+				.attr("width", width)
+				.attr("height", height)
+				.attr("pointer-events", "all");
+
+
+			var xScale = d3.scaleLinear()
+				.domain(d3.extent(Object.values(nodes), n => n.x))
+				.range([0, 100]);
+
+			var yScale = d3.scaleLinear()
+				.domain(d3.extent(Object.values(nodes), n => n.y))
+				.range([0, 100]);
+
+			var rScale = d3.scaleLinear()
+				.domain([0, 1])
+				.range([1, 15]);
+
+			// var colorRange = d3.interpolateRgb("blue", "red")
+			
+			var colorScale = d3.scaleSequential(d3.interpolateRgb)
+				// .domain(d3.extent(nodes, n => n.EMISS))
+				// .range("#000099", "#ff0000")
+				// .interpolateRgb();
+
+
+			// var opacity = d3.scaleLinear()
+			// 	.domain([
+			// 		d3.min(edges, e => e.Value),
+			// 		d3.max(edges, e => e.Value)
+			// 	])
+			// 	.range([0.1, 1.0]); // minimum of 10% to at least be visible
+
+			// add circles for countries
+			svg.selectAll("circle").data(visibleNodes).enter()
+				.append("circle")
+				.attr("cx", n => xScale(n.x) + "%")
+				.attr("cy", n => yScale(n.y) + "%")
+				.attr("r", n => 1)
+				// .attr("strokeWidth", 1)
+				// .attr("stroke", "black")
+				.attr("fill", n => colorScale(n.ALBEDO))
+				.on("click", n => {
+					if (selection == n) {
+						if (edgeToggle)
+							selection = null;
+						else
+							edgeToggle = true;
+					} else {
+						selection = n;
+					}
+					generateVisualization();
+				});
+		}
+
+
+	</script>
+</body>
+
+</html>
