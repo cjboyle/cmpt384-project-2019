@@ -21,6 +21,8 @@
 		var width = 1900.0;
 		var height = 1070.0;
 
+		var mult = 2;
+
 		var nodes = {};
 		var coordinates;
 
@@ -49,11 +51,11 @@
 
 			var xScale = d3.scaleLinear()
 				.domain(d3.extent(Object.values(nodes), n => n.x))
-				.range([0, 100]);
+				.range(d3.extent(Object.values(nodes), n => mult * n.x))
 
 			var yScale = d3.scaleLinear()
 				.domain(d3.extent(Object.values(nodes), n => n.y))
-				.range([0, 100]);
+				.range(d3.extent(Object.values(nodes), n => mult * n.y))
 
 			var rScale = d3.scaleLinear()
 				.domain([0, 1])
@@ -61,7 +63,7 @@
 
 			// var colorRange = d3.interpolateRgb("blue", "red")
 			
-			var colorScale = d3.scaleSequential(d3.interpolateRgb)
+			var colorScale = d3.scaleSequential(d3.interpolateInferno)
 				// .domain(d3.extent(nodes, n => n.EMISS))
 				// .range("#000099", "#ff0000")
 				// .interpolateRgb();
@@ -75,14 +77,15 @@
 			// 	.range([0.1, 1.0]); // minimum of 10% to at least be visible
 
 			// add circles for countries
-			svg.selectAll("circle").data(visibleNodes).enter()
-				.append("circle")
-				.attr("cx", n => xScale(n.x) + "%")
-				.attr("cy", n => yScale(n.y) + "%")
-				.attr("r", n => 1)
-				// .attr("strokeWidth", 1)
+			svg.selectAll("rect").data(visibleNodes).enter()
+				.append("rect")
+				.attr("x", n => xScale(n.x))
+				.attr("y", n => yScale(n.y))
+				.attr("width", n => mult)
+				.attr("height", n => mult)
+				.attr("strokeWidth", 0)
 				// .attr("stroke", "black")
-				.attr("fill", n => colorScale(n.ALBEDO))
+				.attr("fill", n => colorScale(n.EMISS))
 				.on("click", n => {
 					if (selection == n) {
 						if (edgeToggle)
