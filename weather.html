@@ -7,99 +7,143 @@
 
 <head>
 	<meta charset="utf-8">
-	<title>A3</title>
+	<title>Weather</title>
 	<script type="text/javascript" src="d3.v5.min.js"></script>
 	<script src="https://d3js.org/d3-color.v1.min.js"></script>
 	<script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+	<style>
+		html,
+		body {
+			width: auto;
+			height: auto;
+		}
+
+		.graph {
+			width: 1100px;
+			height: 600px;
+			overflow: auto;
+		}
+	</style>
 </head>
 
 <body>
+	<form>
+		<label for="cbxALBEDO">Albedo</label>
+		<input id="cbxALBEDO" name="cbxALBEDO" type="checkbox" checked></input>
+		&nbsp;
+		&nbsp;
+		<label for="cbxEMISS">Emissivity</label>
+		<input id="cbxEMISS" name="cbxEMISS" type="checkbox"></input>
+		&nbsp;
+		&nbsp;
+		<label for="cbxGRDFLX">Ground Flux</label>
+		<input id="cbxGRDFLX" name="cbxGRDFLX" type="checkbox"></input>
+		&nbsp;
+		&nbsp;
+		<label for="cbxSMOIS">Soil Moisture</label>
+		<input id="cbxSMOIS" name="cbxSMOIS" type="checkbox"></input>
+	</form>
+	<br />
+	<div class="graph">
+		<span class="map"></span>
+		<span class="plot"></span>
+	</div>
+	<div class="legend"></div>
 
 	<script type="text/javascript">
+		var mult = 2; // multiplier for pixel size
+		var pixelize = true; // whether to skip 'odd' rows in the csv
 
+		var nodes = [];
 
-		var width = 1900.0;
-		var height = 1070.0;
+		var width = 0;
+		var height = 0;
 
-		var mult = 2;
-
-		var nodes = {};
-		var coordinates;
+		var maxAlbedo = Number.MIN_VALUE;
+		var minAlbedo = Number.MAX_VALUE;
+		var maxEmiss = Number.MIN_VALUE;
+		var minEmiss = Number.MAX_VALUE;
+		var maxGrdFlx = Number.MIN_VALUE;
+		var minGrdFlx = Number.MAX_VALUE;
+		var maxSMois = Number.MIN_VALUE;
+		var minSMois = Number.MAX_VALUE;
 
 		// Read the two data files
-		Promise.all([d3.csv("weather-canada.csv")]).then(data => {
-			nodes = data[0].reduce((a, v) => {
-				v.x = parseFloat(v.x);
-				v.y = parseFloat(v.y);
-				a.push(v);
-				return a;
-			}, []);
-			generateVisualization();
+		d3.csv("weather-canada.csv").then(data => {
+			data.forEach(n => {
+				if (pixelize && (n.x % 2 != 0 || n.y % 2 != 0))
+					return;
+				n.x = parseInt(n.x);
+				if (n.x > width) width = n.x;
+				n.y = parseInt(n.y);
+				if (n.y > height) height = n.x;
+				n.ALBEDO = parseFloat(n.ALBEDO);
+				if (n.ALBEDO < minAlbedo) minAlbedo = n.ALBEDO;
+				if (n.ALBEDO > maxAlbedo) maxAlbedo = n.ALBEDO;
+				n.EMISS = parseFloat(n.EMISS);
+				if (n.EMISS < minEmiss) minEmiss = n.EMISS;
+				if (n.EMISS > maxEmiss) maxEmiss = n.EMISS;
+				n.GRDFLX = parseFloat(n.GRDFLX);
+				if (n.GRDFLX < minGrdFlx) minGrdFlx = n.GRDFLX;
+				if (n.GRDFLX > maxGrdFlx) maxGrdFlx = n.GRDFLX;
+				n.SMOIS = parseFloat(n.SMOIS);
+				if (n.SMOIS < minSMois) minSMois = n.SMOIS;
+				if (n.SMOIS > maxSMois) maxSMois = n.SMOIS;
+				nodes.push(n);
+			});
+			Promise.all([
+				new Promise((rs, rj) => generateMap()),
+				new Promise((rs, rj) => generateLegend()),
+				new Promise((rs, rj) => generatePlot())
+			]);
 		});
 
-		function generateVisualization() {
+		async function generateMap() {
 			var visibleEdges = [];
 			var visibleNodes = nodes;
 
-			d3.select("body svg").remove();
-			var svg = d3.select("body")
+			d3.select("body .graph .map svg").remove();
+			var svg = d3.select("body .graph .map")
 				.append("svg")
-				.attr("width", width)
-				.attr("height", height)
+				.attr("width", mult * width)
+				.attr("height", mult * height)
 				.attr("pointer-events", "all");
 
 
 			var xScale = d3.scaleLinear()
-				.domain(d3.extent(Object.values(nodes), n => n.x))
-				.range(d3.extent(Object.values(nodes), n => mult * n.x))
+				.domain([0, width])
+				.range([0, mult * width]);
 
 			var yScale = d3.scaleLinear()
-				.domain(d3.extent(Object.values(nodes), n => n.y))
-				.range(d3.extent(Object.values(nodes), n => mult * n.y))
-
-			var rScale = d3.scaleLinear()
-				.domain([0, 1])
-				.range([1, 15]);
+				.domain([0, height])
+				.range([0, mult * height]);
 
 			// var colorRange = d3.interpolateRgb("blue", "red")
-			
-			var colorScale = d3.scaleSequential(d3.interpolateInferno)
-				// .domain(d3.extent(nodes, n => n.EMISS))
-				// .range("#000099", "#ff0000")
-				// .interpolateRgb();
 
-
-			// var opacity = d3.scaleLinear()
-			// 	.domain([
-			// 		d3.min(edges, e => e.Value),
-			// 		d3.max(edges, e => e.Value)
-			// 	])
-			// 	.range([0.1, 1.0]); // minimum of 10% to at least be visible
+			var colorScale = d3.scaleSequential(d3.interpolateCubehelixDefault)
 
 			// add circles for countries
 			svg.selectAll("rect").data(visibleNodes).enter()
 				.append("rect")
 				.attr("x", n => xScale(n.x))
 				.attr("y", n => yScale(n.y))
-				.attr("width", n => mult)
-				.attr("height", n => mult)
+				.attr("width", n => mult * (pixelize ? 2 : 1))
+				.attr("height", n => mult * (pixelize ? 2 : 1))
 				.attr("strokeWidth", 0)
 				// .attr("stroke", "black")
-				.attr("fill", n => colorScale(n.EMISS))
-				.on("click", n => {
-					if (selection == n) {
-						if (edgeToggle)
-							selection = null;
-						else
-							edgeToggle = true;
-					} else {
-						selection = n;
-					}
-					generateVisualization();
+				.attr("fill", n => colorScale(n.ALBEDO))
+				.on("hover", n => {
+
 				});
 		}
 
+		async function generateLegend() {
 
+		}
+
+		async function generatePlot() {
+
+		}
 	</script>
 </body>
 
