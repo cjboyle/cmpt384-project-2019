@@ -19,8 +19,8 @@
 		}
 
 		.graph {
-			width: 1100px;
-			height: 600px;
+			width: 60vw;
+			height: 92vh;
 			overflow: auto;
 		}
 	</style>
@@ -52,7 +52,7 @@
 
 	<script type="text/javascript">
 		var mult = 2; // multiplier for pixel size
-		var pixelize = true; // whether to skip 'odd' rows in the csv
+		var pixelize = false; // whether to skip 'odd' rows in the csv
 
 		var nodes = [];
 
@@ -76,7 +76,7 @@
 				n.x = parseInt(n.x);
 				if (n.x > width) width = n.x;
 				n.y = parseInt(n.y);
-				if (n.y > height) height = n.x;
+				if (n.y > height) height = n.y;
 				n.ALBEDO = parseFloat(n.ALBEDO);
 				if (n.ALBEDO < minAlbedo) minAlbedo = n.ALBEDO;
 				if (n.ALBEDO > maxAlbedo) maxAlbedo = n.ALBEDO;
@@ -105,8 +105,8 @@
 			d3.select("body .graph .map svg").remove();
 			var svg = d3.select("body .graph .map")
 				.append("svg")
-				.attr("width", mult * width)
-				.attr("height", mult * height)
+				.attr("width", mult * height)
+				.attr("height", mult * width)
 				.attr("pointer-events", "all");
 
 
@@ -118,20 +118,20 @@
 				.domain([0, height])
 				.range([0, mult * height]);
 
-			// var colorRange = d3.interpolateRgb("blue", "red")
-
+			// var colorScale = d3.scaleSequential(d3.interpolateInferno)
 			var colorScale = d3.scaleSequential(d3.interpolateCubehelixDefault)
+				.domain([minEmiss, maxEmiss]);
 
 			// add circles for countries
 			svg.selectAll("rect").data(visibleNodes).enter()
 				.append("rect")
-				.attr("x", n => xScale(n.x))
-				.attr("y", n => yScale(n.y))
+				.attr("x", n => yScale(n.y))
+				.attr("y", n => xScale(width - n.x))
 				.attr("width", n => mult * (pixelize ? 2 : 1))
 				.attr("height", n => mult * (pixelize ? 2 : 1))
 				.attr("strokeWidth", 0)
 				// .attr("stroke", "black")
-				.attr("fill", n => colorScale(n.ALBEDO))
+				.attr("fill", n => colorScale(n.EMISS))
 				.on("hover", n => {
 
 				});
