@@ -23,6 +23,16 @@
 			height: auto;
 			overflow: auto;
 		}
+
+		div.tooltip {
+			position: absolute;
+			text-align: center;
+			padding: .5rem;
+			background: white;
+			color: black;
+			border: 1px solid black;
+			pointer-events: none;
+		}
 	</style>
 </head>
 
@@ -42,6 +52,10 @@
 		&nbsp;
 		<label for="cbxSMOIS">Soil Moisture</label>
 		<input id="cbxSMOIS" name="cbxSMOIS" type="checkbox"></input>
+		&nbsp;
+		&nbsp;
+		&nbsp;
+		<img id="loader" src="ajax-loading-gif-transparent-background-2.gif" width="15" height="15" />
 	</form>
 	<br />
 	<div class="graph">
@@ -99,6 +113,7 @@
 		});
 
 		async function generateMap() {
+			d3.select("#loader").style("opacity", "1");
 			var visibleEdges = [];
 			var visibleNodes = nodes;
 
@@ -108,7 +123,6 @@
 				.attr("width", mult * height)
 				.attr("height", mult * width)
 				.attr("pointer-events", "all");
-
 
 			var xScale = d3.scaleLinear()
 				.domain([0, width])
@@ -138,19 +152,15 @@
 				.attr("fill", n => colorScale(n.EMISS))
 				.on("mouseover", n => {
 					var text = "<div>ALBEDO: " + n.ALBEDO + "</div><div>EMISS: " + n.ALBEDO + "</div><div>GRDFLX: " + n.GRDFLX + "</div><div>SMOIS: " + n.SMOIS + "</div>"
-					tooltip.transition()
-						.duration(50)
-						.html(text)
+					tooltip.html(text)
 						.style("left", (d3.event.pageX + 10) + "px")
-						.style("top", (d3.event.pageX - 15) + "px")
-						.style("opacity", 1)
-						.html;
+						.style("top", (d3.event.pageY + 10) + "px")
+						.style("opacity", 1);
 				})
 				.on("mouseout", n => {
-					tooltip.transition()
-						.duration(50)
-						.style("opacity", 0);
+					tooltip.html("").style("opacity", 0);
 				});
+			d3.select("#loader").style("opacity", 0);
 		}
 
 		async function generateLegend() {
@@ -160,6 +170,15 @@
 		async function generatePlot() {
 
 		}
+
+
+
+		var form = document.querySelector("form")
+		form.addEventListener("change", () => {
+			generateMap();
+			generateLegend();
+			generatePlot();
+		});
 	</script>
 </body>
 
