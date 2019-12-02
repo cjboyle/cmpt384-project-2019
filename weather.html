@@ -145,8 +145,8 @@
 			// loop through column combinations and compare
 			for (let i = 0; i < tuples.length - 1; i++) {
 				let t1 = tuples[i];
+				// compare against 'future' columns only
 				for (let j = i + 1; j < tuples.length; j++) {
-					// compare against 'future' columns only
 					t2 = tuples[j];
 					// add the inverse distance to the sum
 					sum += 1 - Math.abs(percentRange(t1) - percentRange(t2));
