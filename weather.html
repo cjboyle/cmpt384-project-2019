@@ -8,16 +8,19 @@
 <head>
 	<meta charset="utf-8">
 	<title>Weather</title>
-	<script type="text/javascript" src="d3.v5.min.js"></script>
-	<script src="https://d3js.org/d3-color.v1.min.js"></script>
-	<script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
 	<style>
 		html,
 		body {
 			width: auto;
 			height: auto;
+			padding-left: 5px;
+			padding-top: 1px;
 			font-family: Arial, Helvetica, sans-serif;
-			background-color: lightgoldenrodyellow;
+			background-color: #fdfdec;
+		}
+
+		form input {
+			margin-right: 20px;
 		}
 
 		.graph {
@@ -26,10 +29,12 @@
 			overflow: auto;
 		}
 
-		.graph.map {
+		/* Add a border to the map */
+		svg {
 			border: 1px solid black;
 		}
 
+		/* Set styles for the 'mouseover' tooltip */
 		div.tooltip {
 			position: absolute;
 			padding: .5rem;
@@ -39,10 +44,12 @@
 			pointer-events: none;
 		}
 
+		/* Center the text of the bar spectrum values */
 		div.legend {
 			text-align: center;
 		}
 
+		/* Add a border to the bar spectrum to differentiate from the background */
 		div.legend img {
 			border: 1px solid black;
 		}
@@ -50,49 +57,54 @@
 </head>
 
 <body>
+	<!-- Add form for column checkboxes -->
 	<form>
 		<label for="cbxALBEDO">Albedo</label>
 		<input id="cbxALBEDO" name="cbxALBEDO" type="checkbox" checked></input>
-		&nbsp;
-		&nbsp;
 		<label for="cbxEMISS">Emissivity</label>
 		<input id="cbxEMISS" name="cbxEMISS" type="checkbox"></input>
-		&nbsp;
-		&nbsp;
 		<label for="cbxGRDFLX">Ground Flux</label>
 		<input id="cbxGRDFLX" name="cbxGRDFLX" type="checkbox"></input>
-		&nbsp;
-		&nbsp;
 		<label for="cbxSMOIS">Soil Moisture</label>
 		<input id="cbxSMOIS" name="cbxSMOIS" type="checkbox"></input>
-		&nbsp;
-		&nbsp;
-		&nbsp;
 		<img id="loader" src="ajax-loading-gif-transparent-background-2.gif" width="15" height="15" />
 	</form>
 	<br />
+	<!-- placeholder for the graph -->
 	<div class="graph">
 		<span class="map"></span>
 	</div>
 	<br />
+	<!-- Add a legend for the color spectrum range -->
 	<div class="legend" style="width: fit-content;">
-		<img src="https://raw.githubusercontent.com/d3/d3-scale-chromatic/master/img/inferno.png" height="50">
-		<div style="width: 100%;">
-			<span style="float: left;">0%</span>
+		<img src="https://raw.githubusercontent.com/d3/d3-scale-chromatic/master/img/inferno.png" width="422">
+		<span style="float:right;padding: 19px;">Mean = <span id="legendMean"></span></span>
+		<div style="width: 422px">
+			<span id="legendMin" style="float: left;"></span>
 			<span id="legendTag"></span>
-			<span style="float: right;">100%</span>
+			<span id="legendMax" style="float: right;"></span>
 		</div>
 	</div>
 
+	<!-- Load d3, d3-color, and d3-interpolate libraries -->
+	<script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+	<script type="text/javascript" src="https://d3js.org/d3-color.v1.min.js"></script>
+	<script type="text/javascript" src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+
+	<!-- Define local JS -->
 	<script type="text/javascript">
-		var mult = 1.5; // multiplier for pixel size
-		var pixelize = true; // whether to skip 'odd' rows in the csv
+		// multiplier to set the pixel size
+		var mult = 1.85;
+		// whether to skip 'odd' rows in the csv
+		var pixelize = true;
 
 		var nodes = [];
 
+		// width and height will be set by the 'pixels'
 		var width = 0;
 		var height = 0;
 
+		// mins, maxs for all values
 		var maxAlbedo = Number.MIN_VALUE;
 		var minAlbedo = Number.MAX_VALUE;
 		var maxEmiss = Number.MIN_VALUE;
@@ -102,10 +114,15 @@
 		var maxSMois = Number.MIN_VALUE;
 		var minSMois = Number.MAX_VALUE;
 
+		// min, max for the current selection
 		var maximum = Number.MIN_VALUE;
 		var minimum = Number.MAX_VALUE;
 		var multipleSelections = false;
 
+		/**
+		 * Calculates the range percentage of a value.
+		 * t : any[] -> a tuple in the format [value, minimum, maximum]
+		 */
 		function percentRange(t) {
 			var val = t[0];
 			var min = t[1];
@@ -113,152 +130,207 @@
 			return ((val - min)) / (max - min);
 		}
 
-		function correlate(tuples) {
+		/**
+		 * Overlays a set of values on top of each other based on their respective
+		 * ranges, and returns the percentage of relation. If there is only one tuple,
+		 * returns its range percentage immediately.
+		 * tuples : Number[][] -> a list of tuples in the formaat [[value, minimum, maximum], ...]
+		 */
+		function overlay(tuples) {
 			if (tuples.length === 1) {
+				// return the percentage immediately
 				return percentRange(tuples[0]);
 			}
-			var sum = 0;
+			var sum = 0, count = 0;
+			// loop through column combinations and compare
 			for (let i = 0; i < tuples.length - 1; i++) {
 				let t1 = tuples[i];
-				for (let j = i; j < tuples.length; j++) {
-					if (i !== j) {
-						t2 = tuples[j];
-						sum += 1 - Math.abs(percentRange(t1) - percentRange(t2));
-					}
+				for (let j = i + 1; j < tuples.length; j++) {
+					// compare against 'future' columns only
+					t2 = tuples[j];
+					// add the inverse distance to the sum
+					sum += 1 - Math.abs(percentRange(t1) - percentRange(t2));
+					count++;
 				}
 			}
-			return sum / tuples.length;
+			// divide by number of comparisons to get the average
+			return sum / count;
 		}
 
+		/**
+		 * Overlays a set of values on top of each other based on their respective ranges.
+		 * If there is only one tuple, returns its range percentage immediately.
+		 * tuples : Number[][] -> a list of tuples in the formaat [[value, minimum, maximum], ...]
+		 */
 		function parseDataValues(n) {
 			var visibleData = [];
+			// check whether to include albedo in calculation
 			if (document.getElementById("cbxALBEDO").checked) {
-				d3.select("#legendTag").html("Albedo")
+				d3.select("#legendTag").html("Albedo");
+				d3.select("#legendMin").html("0.0");
+				d3.select("#legendMax").html("1.0");
 				visibleData.push([n.ALBEDO, minAlbedo, maxAlbedo]);
 			}
+			// check whether to include emissivity in calculation
 			if (document.getElementById("cbxEMISS").checked) {
-				d3.select("#legendTag").html("Emissivity")
+				d3.select("#legendTag").html("Emissivity");
+				d3.select("#legendMin").html("0.0");
+				d3.select("#legendMax").html("1.0");
 				visibleData.push([n.EMISS, minEmiss, maxEmiss]);
 			}
+			// check whether to include ground flux in calculation
 			if (document.getElementById("cbxGRDFLX").checked) {
-				d3.select("#legendTag").html("Ground Flux")
+				d3.select("#legendTag").html("Ground Flux (W\u1427m<sup>-2</sup>)")
+				d3.select("#legendMin").html(minGrdFlx);
+				d3.select("#legendMax").html(maxGrdFlx);
 				visibleData.push([n.GRDFLX, minGrdFlx, maxGrdFlx]);
 			}
+			// check whether to include soil moisture in calculation
 			if (document.getElementById("cbxSMOIS").checked) {
-				d3.select("#legendTag").html("Soil Moisture")
+				d3.select("#legendTag").html("Soil Moisture");
+				d3.select("#legendMin").html("0.0");
+				d3.select("#legendMax").html("1.0");
 				visibleData.push([n.SMOIS, minSMois, maxSMois]);
 			}
 
+			// if multiple selections, set the legend tag to a relation percentage
 			if (visibleData.length > 1) {
-				d3.select("#legendTag").html("Correlation");
+				d3.select("#legendTag").html("Relation");
+				d3.select("#legendMin").html("0%");
+				d3.select("#legendMax").html("100%");
 				multipleSelections = true;
 			} else {
 				multipleSelections = false;
+				if (visibleData.length == 0)
+					return 0;
 			}
-
-			return correlate(visibleData);
+			// return the relation between visible values of the node
+			return overlay(visibleData);
 		}
 
-		// Read the data file
+		// Read the data file and parse numerical values,
+		// while storing mins and maxs of the data columns
 		d3.csv("weather-lower-canada.csv").then(data => {
 			data.forEach(n => {
-				if (pixelize && (n.x % 2 != 0 || n.y % 2 != 0))
-					return;
+				// parse x and y coordinates
 				n.x = parseInt(n.x);
 				if (n.x > width) width = n.x;
 				n.y = parseInt(n.y);
 				if (n.y > height) height = n.y;
+				// if pixelizing, skip 'odd' coordinates
+				if (pixelize && (n.x % 2 != 0 || n.y % 2 != 0))
+					return;
+				// parse albedo
 				n.ALBEDO = parseFloat(n.ALBEDO);
 				if (n.ALBEDO < minAlbedo) minAlbedo = n.ALBEDO;
 				if (n.ALBEDO > maxAlbedo) maxAlbedo = n.ALBEDO;
+				// parse emissivity
 				n.EMISS = parseFloat(n.EMISS);
 				if (n.EMISS < minEmiss) minEmiss = n.EMISS;
 				if (n.EMISS > maxEmiss) maxEmiss = n.EMISS;
+				// parse ground flux
 				n.GRDFLX = parseFloat(n.GRDFLX);
 				if (n.GRDFLX < minGrdFlx) minGrdFlx = n.GRDFLX;
 				if (n.GRDFLX > maxGrdFlx) maxGrdFlx = n.GRDFLX;
+				// parse moisture content
 				n.SMOIS = parseFloat(n.SMOIS);
 				if (n.SMOIS < minSMois) minSMois = n.SMOIS;
 				if (n.SMOIS > maxSMois) maxSMois = n.SMOIS;
+				// store the node
 				nodes.push(n);
 			});
-			Promise.all([
-				new Promise((rs, rj) => generateMap()),
-				new Promise((rs, rj) => generateLegend()),
-				new Promise((rs, rj) => generatePlot())
-			]);
+			generateMap();
 		});
 
-		async function generateMap() {
+		/**
+		 * Generate the heatmap graph
+		 */
+		function generateMap() {
+			// show the loader animation
 			d3.select("#loader").style("opacity", "1");
 
+			// parse the value to show based on selected checkboxes
+			var sum = 0;
 			nodes.forEach(n => {
 				n.VALUE = parseDataValues(n);
 				if (n.VALUE < minimum) minimum = n.VALUE;
 				if (n.VALUE > maximum) maximum = n.VALUE;
+				sum += n.VALUE;
 			});
+			var mean = sum / nodes.length;
+			// show the mean of the visible dataset, or of the relation between multiple
+			if (multipleSelections)
+				d3.select("#legendMean").html((Math.round(100000 * mean) / 1000) + "%");
+			else d3.select("#legendMean").html(Math.round(1000 * mean) / 1000);
 
+			// remove the graph and tooltip to redraw the graph
 			d3.select("body .graph .map svg").remove();
 			d3.select("body #tooltip").remove();
+
+			// add the svg element
 			var svg = d3.select("body .graph .map")
 				.append("svg")
 				.attr("width", mult * height)
 				.attr("height", mult * width)
 				.attr("pointer-events", "all");
 
-			var xScale = d3.scaleLinear()
-				.domain([0, width])
-				.range([0, mult * width]);
-
-			var yScale = d3.scaleLinear()
-				.domain([0, height])
-				.range([0, mult * height]);
-
+			// add a tooltip, but make it invisible to start
 			var tooltip = d3.select("body").append("div")
 				.attr("class", "tooltip")
 				.style("opacity", 0);
 
+			// set the x-scale based on the multiplier
+			var xScale = d3.scaleLinear()
+				.domain([0, width])
+				.range([0, mult * width]);
+
+			// set the y-scale based on the multiplier
+			var yScale = d3.scaleLinear()
+				.domain([0, height])
+				.range([0, mult * height]);
+
+			// set the color scale for the visible values
 			var colorScale = d3.scaleSequential(d3.interpolateInferno)
 				// var colorScale = d3.scaleSequential(d3.interpolateCubehelixDefault)
 				.domain([minimum, maximum]);
-			// .domain([minEmiss, maxEmiss]);
 
-			// add circles for countries
-			svg.selectAll("rect").data(nodes).enter()
-				.append("rect")
-				.attr("x", n => yScale(n.y))
-				.attr("y", n => xScale(width - n.x))
-				.attr("width", n => mult * (pixelize ? 2 : 1))
-				.attr("height", n => mult * (pixelize ? 2 : 1))
+			// add rectangles for 'pixels'
+			svg.selectAll("rect").data(nodes).enter().append("rect")
+				.attr("x", n => yScale(n.y)) // flipping x and y axis within y's scale
+				.attr("y", n => xScale(width - n.x)) // flipping x and y axis, and mirror it, within x's scale
+				.attr("width", n => mult * (pixelize ? 2 : 1)) // resize width for multiplier and pixelize attribute
+				.attr("height", n => mult * (pixelize ? 2 : 1)) // resize height for multiplier and pixelize attribute
 				.attr("strokeWidth", 0)
-				// .attr("stroke", "black")
-				.attr("fill", n => colorScale(n.VALUE))
+				.attr("fill", n => colorScale(n.VALUE)) // set the color of the node
 				.on("mouseover", n => {
+					// add a popup tooltip to show the data of a pixel's node
 					var text = "<div><strong>ALBEDO</strong>: " + (Math.round(n.ALBEDO * 1000) / 1000) + "</div>";
 					text += "<div><strong>EMISS</strong>: " + (Math.round(n.EMISS * 1000) / 1000) + "</div>";
 					text += "<div><strong>GRDFLX</strong>: " + (Math.round(n.GRDFLX * 1000) / 1000) + " W\u1427m<sup>-2</sup></div>";
 					text += "<div><strong>SMOIS</strong>: " + (Math.round(n.SMOIS * 1000) / 1000) + "</div>";
 					if (multipleSelections) {
 						text += "<hr/>"
-						text += "<div><strong>CORRL</strong>: " + (Math.round(n.VALUE * 10000) / 100) + " %</div>";
+						text += "<div><strong>RELATION</strong>: " + (Math.round(n.VALUE * 10000) / 100) + " %</div>";
 					}
+					// move the tooltip near the mouse position
 					tooltip.html(text)
 						.style("left", (d3.event.pageX + 10) + "px")
 						.style("top", (d3.event.pageY + 10) + "px")
 						.style("opacity", 1);
 				})
 				.on("mouseout", n => {
+					// hide the tooltip (don't remove)
 					tooltip.html("").style("opacity", 0);
 				});
 
+			// hide the loader GIF
 			d3.select("#loader").style("opacity", 0);
 		}
 
+		// when a checkbox state is modified, redraw the map
 		var form = document.querySelector("form")
 		form.addEventListener("change", () => {
 			generateMap();
-			generateLegend();
-			generatePlot();
 		});
 	</script>
 </body>
