@@ -16,22 +16,35 @@
 		body {
 			width: auto;
 			height: auto;
+			font-family: Arial, Helvetica, sans-serif;
+			background-color: lightgoldenrodyellow;
 		}
 
 		.graph {
-			width: 60vw;
+			width: auto;
 			height: auto;
 			overflow: auto;
 		}
 
+		.graph.map {
+			border: 1px solid black;
+		}
+
 		div.tooltip {
 			position: absolute;
-			text-align: center;
 			padding: .5rem;
 			background: white;
 			color: black;
 			border: 1px solid black;
 			pointer-events: none;
+		}
+
+		div.legend {
+			text-align: center;
+		}
+
+		div.legend img {
+			border: 1px solid black;
 		}
 	</style>
 </head>
@@ -60,13 +73,20 @@
 	<br />
 	<div class="graph">
 		<span class="map"></span>
-		<span class="plot"></span>
 	</div>
-	<div class="legend"></div>
+	<br />
+	<div class="legend" style="width: fit-content;">
+		<img src="https://raw.githubusercontent.com/d3/d3-scale-chromatic/master/img/inferno.png" height="50">
+		<div style="width: 100%;">
+			<span style="float: left;">0%</span>
+			<span id="legendTag"></span>
+			<span style="float: right;">100%</span>
+		</div>
+	</div>
 
 	<script type="text/javascript">
-		var mult = 2; // multiplier for pixel size
-		var pixelize = false; // whether to skip 'odd' rows in the csv
+		var mult = 1.5; // multiplier for pixel size
+		var pixelize = true; // whether to skip 'odd' rows in the csv
 
 		var nodes = [];
 
@@ -82,7 +102,64 @@
 		var maxSMois = Number.MIN_VALUE;
 		var minSMois = Number.MAX_VALUE;
 
-		// Read the two data files
+		var maximum = Number.MIN_VALUE;
+		var minimum = Number.MAX_VALUE;
+		var multipleSelections = false;
+
+		function percentRange(t) {
+			var val = t[0];
+			var min = t[1];
+			var max = t[2];
+			return ((val - min)) / (max - min);
+		}
+
+		function correlate(tuples) {
+			if (tuples.length === 1) {
+				return percentRange(tuples[0]);
+			}
+			var sum = 0;
+			for (let i = 0; i < tuples.length - 1; i++) {
+				let t1 = tuples[i];
+				for (let j = i; j < tuples.length; j++) {
+					if (i !== j) {
+						t2 = tuples[j];
+						sum += 1 - Math.abs(percentRange(t1) - percentRange(t2));
+					}
+				}
+			}
+			return sum / tuples.length;
+		}
+
+		function parseDataValues(n) {
+			var visibleData = [];
+			if (document.getElementById("cbxALBEDO").checked) {
+				d3.select("#legendTag").html("Albedo")
+				visibleData.push([n.ALBEDO, minAlbedo, maxAlbedo]);
+			}
+			if (document.getElementById("cbxEMISS").checked) {
+				d3.select("#legendTag").html("Emissivity")
+				visibleData.push([n.EMISS, minEmiss, maxEmiss]);
+			}
+			if (document.getElementById("cbxGRDFLX").checked) {
+				d3.select("#legendTag").html("Ground Flux")
+				visibleData.push([n.GRDFLX, minGrdFlx, maxGrdFlx]);
+			}
+			if (document.getElementById("cbxSMOIS").checked) {
+				d3.select("#legendTag").html("Soil Moisture")
+				visibleData.push([n.SMOIS, minSMois, maxSMois]);
+			}
+
+			if (visibleData.length > 1) {
+				d3.select("#legendTag").html("Correlation");
+				multipleSelections = true;
+			} else {
+				multipleSelections = false;
+			}
+
+			return correlate(visibleData);
+		}
+
+		// Read the data file
 		d3.csv("weather-lower-canada.csv").then(data => {
 			data.forEach(n => {
 				if (pixelize && (n.x % 2 != 0 || n.y % 2 != 0))
@@ -114,8 +191,12 @@
 
 		async function generateMap() {
 			d3.select("#loader").style("opacity", "1");
-			var visibleEdges = [];
-			var visibleNodes = nodes;
+
+			nodes.forEach(n => {
+				n.VALUE = parseDataValues(n);
+				if (n.VALUE < minimum) minimum = n.VALUE;
+				if (n.VALUE > maximum) maximum = n.VALUE;
+			});
 
 			d3.select("body .graph .map svg").remove();
 			var svg = d3.select("body .graph .map")
@@ -136,12 +217,13 @@
 				.attr("class", "tooltip")
 				.style("opacity", 0);
 
-			// var colorScale = d3.scaleSequential(d3.interpolateInferno)
-			var colorScale = d3.scaleSequential(d3.interpolateCubehelixDefault)
-				.domain([minEmiss, maxEmiss]);
+			var colorScale = d3.scaleSequential(d3.interpolateInferno)
+				// var colorScale = d3.scaleSequential(d3.interpolateCubehelixDefault)
+				.domain([minimum, maximum]);
+			// .domain([minEmiss, maxEmiss]);
 
 			// add circles for countries
-			svg.selectAll("rect").data(visibleNodes).enter()
+			svg.selectAll("rect").data(nodes).enter()
 				.append("rect")
 				.attr("x", n => yScale(n.y))
 				.attr("y", n => xScale(width - n.x))
@@ -149,9 +231,16 @@
 				.attr("height", n => mult * (pixelize ? 2 : 1))
 				.attr("strokeWidth", 0)
 				// .attr("stroke", "black")
-				.attr("fill", n => colorScale(n.EMISS))
+				.attr("fill", n => colorScale(n.VALUE))
 				.on("mouseover", n => {
-					var text = "<div>ALBEDO: " + n.ALBEDO + "</div><div>EMISS: " + n.ALBEDO + "</div><div>GRDFLX: " + n.GRDFLX + "</div><div>SMOIS: " + n.SMOIS + "</div>"
+					var text = "<div><strong>ALBEDO</strong>: " + (Math.round(n.ALBEDO * 1000) / 1000) + "</div>";
+					text += "<div><strong>EMISS</strong>: " + (Math.round(n.EMISS * 1000) / 1000) + "</div>";
+					text += "<div><strong>GRDFLX</strong>: " + (Math.round(n.GRDFLX * 1000) / 1000) + " W\u1427m<sup>-2</sup></div>";
+					text += "<div><strong>SMOIS</strong>: " + (Math.round(n.SMOIS * 1000) / 1000) + "</div>";
+					if (multipleSelections) {
+						text += "<hr/>"
+						text += "<div><strong>CORRL</strong>: " + (Math.round(n.VALUE * 10000) / 100) + " %</div>";
+					}
 					tooltip.html(text)
 						.style("left", (d3.event.pageX + 10) + "px")
 						.style("top", (d3.event.pageY + 10) + "px")
@@ -160,18 +249,9 @@
 				.on("mouseout", n => {
 					tooltip.html("").style("opacity", 0);
 				});
+
 			d3.select("#loader").style("opacity", 0);
 		}
-
-		async function generateLegend() {
-
-		}
-
-		async function generatePlot() {
-
-		}
-
-
 
 		var form = document.querySelector("form")
 		form.addEventListener("change", () => {
