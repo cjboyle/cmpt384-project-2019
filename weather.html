@@ -199,6 +199,7 @@
 			});
 
 			d3.select("body .graph .map svg").remove();
+			d3.select("body #tooltip").remove();
 			var svg = d3.select("body .graph .map")
 				.append("svg")
 				.attr("width", mult * height)
