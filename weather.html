@@ -85,6 +85,10 @@
 			<span id="legendMax" style="float: right;"></span>
 		</div>
 	</div>
+	<div>
+		<input type="range" id="myRange" min="0" max="100" value="50">
+
+	</div>
 
 	<!-- Load d3, d3-color, and d3-interpolate libraries -->
 	<script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
@@ -301,7 +305,16 @@
 				.attr("width", n => mult * (pixelize ? 2 : 1)) // resize width for multiplier and pixelize attribute
 				.attr("height", n => mult * (pixelize ? 2 : 1)) // resize height for multiplier and pixelize attribute
 				.attr("strokeWidth", 0)
-				.attr("fill", n => colorScale(n.VALUE)) // set the color of the node
+				.attr("fill", n => {
+					var sel = document.getElementById("myRange").value/100;
+					if (n.VALUE >= sel -0.01 && n.VALUE < sel + 0.01) {
+						return "cyan";
+					}
+					return colorScale(n.VALUE);
+				})
+
+
+				// set the color of the node
 				.on("mouseover", n => {
 					// add a popup tooltip to show the data of a pixel's node
 					var text = "<div><strong>ALBEDO</strong>: " + (Math.round(n.ALBEDO * 1000) / 1000) + " (" + (Math.round(percentRange([n.ALBEDO, minAlbedo, maxAlbedo]) * 10000) / 100) + "%)</div>";
@@ -322,6 +335,11 @@
 					// hide the tooltip (don't remove)
 					tooltip.html("").style("opacity", 0);
 				});
+
+			d3.select("#myRange").on("change", function (d) {
+				// selectedValue = this.value
+				generateMap();
+			})
 
 			// hide the loader GIF
 			d3.select("#loader").style("opacity", 0);
