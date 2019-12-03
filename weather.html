@@ -167,29 +167,29 @@
 			// check whether to include albedo in calculation
 			if (document.getElementById("cbxALBEDO").checked) {
 				d3.select("#legendTag").html("Albedo");
-				d3.select("#legendMin").html("0.0");
-				d3.select("#legendMax").html("1.0");
+				d3.select("#legendMin").html(Math.round(100 * minAlbedo) / 100);
+				d3.select("#legendMax").html(Math.round(100 * maxAlbedo) / 100);
 				visibleData.push([n.ALBEDO, minAlbedo, maxAlbedo]);
 			}
 			// check whether to include emissivity in calculation
 			if (document.getElementById("cbxEMISS").checked) {
 				d3.select("#legendTag").html("Emissivity");
-				d3.select("#legendMin").html("0.0");
-				d3.select("#legendMax").html("1.0");
+				d3.select("#legendMin").html(Math.round(100 * minEmiss) / 100);
+				d3.select("#legendMax").html(Math.round(100 * maxEmiss) / 100);
 				visibleData.push([n.EMISS, minEmiss, maxEmiss]);
 			}
 			// check whether to include ground flux in calculation
 			if (document.getElementById("cbxGRDFLX").checked) {
-				d3.select("#legendTag").html("Ground Flux (W\u1427m<sup>-2</sup>)")
-				d3.select("#legendMin").html(minGrdFlx);
-				d3.select("#legendMax").html(maxGrdFlx);
+				d3.select("#legendTag").html("Ground Flux (W\u1427m<sup>-2</sup>)");
+				d3.select("#legendMin").html(Math.round(100 * minGrdFlx) / 100);
+				d3.select("#legendMax").html(Math.round(100 * maxGrdFlx) / 100);
 				visibleData.push([n.GRDFLX, minGrdFlx, maxGrdFlx]);
 			}
 			// check whether to include soil moisture in calculation
 			if (document.getElementById("cbxSMOIS").checked) {
 				d3.select("#legendTag").html("Soil Moisture");
-				d3.select("#legendMin").html("0.0");
-				d3.select("#legendMax").html("1.0");
+				d3.select("#legendMin").html(Math.round(100 * minSMois) / 100);
+				d3.select("#legendMax").html(Math.round(100 * maxSMois) / 100);
 				visibleData.push([n.SMOIS, minSMois, maxSMois]);
 			}
 
