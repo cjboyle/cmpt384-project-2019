@@ -304,10 +304,10 @@
 				.attr("fill", n => colorScale(n.VALUE)) // set the color of the node
 				.on("mouseover", n => {
 					// add a popup tooltip to show the data of a pixel's node
-					var text = "<div><strong>ALBEDO</strong>: " + (Math.round(n.ALBEDO * 1000) / 1000) + "</div>";
-					text += "<div><strong>EMISS</strong>: " + (Math.round(n.EMISS * 1000) / 1000) + "</div>";
-					text += "<div><strong>GRDFLX</strong>: " + (Math.round(n.GRDFLX * 1000) / 1000) + " W\u1427m<sup>-2</sup></div>";
-					text += "<div><strong>SMOIS</strong>: " + (Math.round(n.SMOIS * 1000) / 1000) + "</div>";
+					var text = "<div><strong>ALBEDO</strong>: " + (Math.round(n.ALBEDO * 1000) / 1000) + " (" + (Math.round(percentRange([n.ALBEDO, minAlbedo, maxAlbedo]) * 10000) / 100) + "%)</div>";
+					text += "<div><strong>EMISS</strong>: " + (Math.round(n.EMISS * 1000) / 1000) + " (" + (Math.round(percentRange([n.EMISS, minEmiss, maxEmiss]) * 10000) / 100) + "%)</div>";
+					text += "<div><strong>GRDFLX</strong>: " + (Math.round(n.GRDFLX * 1000) / 1000) + " W\u1427m<sup>-2</sup>" + " (" + (Math.round(percentRange([n.GRDFLX, minGrdFlx, maxGrdFlx]) * 10000) / 100) + "%)</div>";
+					text += "<div><strong>SMOIS</strong>: " + (Math.round(n.SMOIS * 1000) / 1000) + " (" + (Math.round(percentRange([n.SMOIS, minSMois, maxSMois]) * 10000) / 100) + "%)</div>";
 					if (multipleSelections) {
 						text += "<hr/>"
 						text += "<div><strong>RELATION</strong>: " + (Math.round(n.VALUE * 10000) / 100) + " %</div>";
