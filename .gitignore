@@ -1,6 +1,4 @@
-*/*.zip
-*/*.doc
-*/*.docx
-*/*.pyc
+*.zip
+*.pyc
 
 split.py
